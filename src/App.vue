@@ -4,7 +4,7 @@
 
 <script setup>
 // 引入组合式API
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 // 引入threejs
 import * as THREE from 'three'
@@ -40,16 +40,44 @@ const renderFn = () => {
   requestAnimationFrame(renderFn)
 }
 
+// 封装当屏幕宽高改变时，更新摄像机、渲染器的宽高
+const onWindowResize = () => {
+  // 更新摄像机视锥体的长宽比
+  camera.aspect = (window.innerWidth / window.innerHeight)
+
+  // 更新摄像机投影矩阵。在任何参数被改变以后必须被调用。
+  camera.updateProjectionMatrix()
+
+  // 将输出canvas的大小修改
+  renderer.setSize(window.innerWidth, window.innerHeight)
+
+  // 重新渲染场景
+  renderer.render(scene, camera)
+}
+
+
+
 // 组件挂载完毕
 onMounted(() => {
   // 创建控制器
   const controls = new OrbitControls(camera, container.value)
   controls.update()
+
   // 开启阻尼
   container.enableDamping = true
+
   // 将渲染器添加到HTML元素上
   container.value.appendChild(renderer.domElement)
+
+  // window绑定事件
+  window.addEventListener('resize', onWindowResize)
+
   renderFn()
+})
+
+// 组件卸载完毕
+onUnmounted(()=>{
+  window.removeEventListener('resize', onWindowResize)
 })
 </script>
 
