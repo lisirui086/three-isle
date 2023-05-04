@@ -12,6 +12,22 @@ import * as THREE from 'three'
 // 引入轨道控制器
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 
+// 引入水面
+import { Water } from 'three/examples/jsm/objects/Water2'
+
+// 引入gltf库
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader"
+
+// 压缩模型
+import { DRACOLoader  } from 'three/examples/jsm/loaders/DRACOLoader'
+
+// 引入颜色贴图。
+import sky from './assets/image/texture/sky.jpg'
+import skyVideo from './assets/image/texture/sky.mp4'
+
+// 引入小岛模型
+// import Island from './assets/model/island2.glb'
+
 // 创建场景
 const scene = new THREE.Scene()
 
@@ -24,15 +40,58 @@ scene.add(camera)
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(window.innerWidth, window.innerHeight)
 
-// 创建平面
-const planeGeometry = new THREE.PlaneGeometry(1,1)
-const meshBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00})
-const plane = new THREE.Mesh(planeGeometry, meshBasicMaterial)
-scene.add(plane)
+// 创建颜色贴图。
+const skyMap = new THREE.TextureLoader().load(sky)
 
+// 创建球体
+const sphereGeometry = new THREE.SphereGeometry(1000, 60, 40)
+sphereGeometry.scale(1, 1, -1)
+const meshBasicMaterial = new THREE.MeshBasicMaterial({
+  map: skyMap
+})
+const sphere = new THREE.Mesh(sphereGeometry, meshBasicMaterial)
+scene.add(sphere)
+
+// 创建水面
+const cireleGeometry = new THREE.CircleGeometry(300, 64)
+const water = new Water(cireleGeometry, {
+  textureWidth: 1024,
+  textureHeight: 1024,
+  // 水流方向
+  flowDirection: new THREE.Vector2(1, 1),
+  scale: 1,
+})
+//  水面旋转至水平
+water.rotation.x = -Math.PI / 2 
+
+scene.add(water)
+
+// 创建小岛模型
+// 实例化GLTF载入库
+const gltfLoader = new GLTFLoader()
+// 实例化DRACO载入库
+const dracoLoader = new DRACOLoader()
+
+//  设置解压库文件路径
+dracoLoader.setDecoderPath('/draco/')
+
+//  gltfloader使用dracoLoader
+gltfLoader.setDRACOLoader(dracoLoader)
+
+gltfLoader.load('/model/island2.glb', (gltf) => {
+  scene.add(gltf.scene)
+})
 
 // 获取节点
 const container = ref(null)
+
+
+// 创建video节点 创建视频贴图
+const video = document.createElement('video')
+video.src = skyVideo
+  
+// 开启视频循环播放
+video.loop = true
 
 // 封装一个渲染函数
 const renderFn = () => {
@@ -55,7 +114,16 @@ const onWindowResize = () => {
   renderer.render(scene, camera)
 }
 
-
+// 鼠标移动页面时播放视频
+const playVideo = () =>{
+  if(video.paused) {
+    const skyMapByVideo = new THREE.VideoTexture(video)
+    meshBasicMaterial.map = skyMapByVideo
+    // 纹理被更新后调用
+    meshBasicMaterial.map.needsUpdate = true
+    video.play()
+  }
+}
 
 // 组件挂载完毕
 onMounted(() => {
@@ -68,16 +136,24 @@ onMounted(() => {
 
   // 将渲染器添加到HTML元素上
   container.value.appendChild(renderer.domElement)
+  container.value.appendChild(video)
 
-  // window绑定事件
+  // window绑定 侦听屏幕宽高改变 事件
   window.addEventListener('resize', onWindowResize)
+
+  // window绑定 鼠标经过屏幕时自动播放视频纹理
+  window.addEventListener('click', playVideo)
 
   renderFn()
 })
 
 // 组件卸载完毕
 onUnmounted(()=>{
+  // window卸载 侦听屏幕宽高改变 事件
   window.removeEventListener('resize', onWindowResize)
+
+  // window卸载 鼠标经过屏幕时自动播放视频纹理
+  window.removeEventListener('mousemove', playVideo)
 })
 </script>
 
