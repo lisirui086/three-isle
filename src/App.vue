@@ -13,7 +13,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 
 // 引入水面
-import { Water } from 'three/examples/jsm/objects/Water2'
+import { Water } from "three/examples/jsm/objects/Water2"
 
 // 引入gltf库
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader"
@@ -21,9 +21,15 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader"
 // 压缩模型
 import { DRACOLoader  } from 'three/examples/jsm/loaders/DRACOLoader'
 
+// 引入环境纹理HDR
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader'
+
 // 引入颜色贴图。
 import sky from './assets/image/texture/sky.jpg'
 import skyVideo from './assets/image/texture/sky.mp4'
+
+// 引入水波贴图
+import waterTexture from './assets/image/texture/waternormals.jpg'
 
 // 引入小岛模型
 // import Island from './assets/model/island2.glb'
@@ -33,15 +39,26 @@ const scene = new THREE.Scene()
 
 // 创建相机
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 2000)
-camera.position.z = 5
+// camera.position.z = 5
+camera.position.set(-50, 50, 130);
 scene.add(camera)
 
 // 创建渲染器
-const renderer = new THREE.WebGLRenderer({ antialias: true })
+const renderer = new THREE.WebGLRenderer({ 
+  antialias: true,
+
+  // 对数深度缓冲区
+  logarithmicDepthBuffer: true
+})
 renderer.setSize(window.innerWidth, window.innerHeight)
 
 // 创建颜色贴图。
 const skyMap = new THREE.TextureLoader().load(sky)
+
+// 添加平行光
+const directionalLight = new THREE.DirectionalLight()
+directionalLight.position.set(-100, 100, 10)
+scene.add(directionalLight)
 
 // 创建球体
 const sphereGeometry = new THREE.SphereGeometry(1000, 60, 40)
@@ -52,19 +69,29 @@ const meshBasicMaterial = new THREE.MeshBasicMaterial({
 const sphere = new THREE.Mesh(sphereGeometry, meshBasicMaterial)
 scene.add(sphere)
 
-// 创建水面
-const cireleGeometry = new THREE.CircleGeometry(300, 64)
-const water = new Water(cireleGeometry, {
-  textureWidth: 1024,
-  textureHeight: 1024,
-  // 水流方向
-  flowDirection: new THREE.Vector2(1, 1),
-  scale: 1,
+// 载入环境纹理 hdr
+const rgbeLoader = new RGBELoader()
+rgbeLoader.loadAsync('/image/hrd/050.hdr').then(texture=>{
+  texture.mapping = THREE.EquirectangularReflectionMapping
+  scene.background = texture
+  scene.environment = texture
 })
-//  水面旋转至水平
-water.rotation.x = -Math.PI / 2 
 
-scene.add(water)
+// 创建水面
+const waterGeometry = new THREE.CircleGeometry(300, 64);
+const water = new Water(waterGeometry, {
+  textureWidth: 512,
+  textureHeight: 512,
+  color: 0xeeeeff,
+  waterNormals: new THREE.TextureLoader().load(waterTexture, texture => {
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  }),
+  flowDirection: new THREE.Vector2(1, 1)
+})
+// 水面漫过石头一部分
+water.position.y = 3
+water.rotation.x = - Math.PI / 2;
+scene.add(water);
 
 // 创建小岛模型
 // 实例化GLTF载入库
@@ -95,8 +122,8 @@ video.loop = true
 
 // 封装一个渲染函数
 const renderFn = () => {
-  renderer.render(scene, camera)
   requestAnimationFrame(renderFn)
+  renderer.render(scene, camera)
 }
 
 // 封装当屏幕宽高改变时，更新摄像机、渲染器的宽高
